@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+// @ts-ignore
 import axios from '../api';
 
 const LoginPage: React.FC = () => {
