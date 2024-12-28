@@ -5,26 +5,25 @@ import api from '../api';
 import { Task } from '../types/Task';
 
 const TasksPage: React.FC = () => {
-    const [tasks, setTasks] = useState<Task[]>([]); // State to store tasks
-    const [newTask, setNewTask] = useState({ title: '', description: '', status: '' }); // State for new task form
-    const [error, setError] = useState<string | null>(null); // Error message state
-    const navigate = useNavigate(); // React Router navigation hook
+    const [tasks, setTasks] = useState<Task[]>([]);
+    const [newTask, setNewTask] = useState({ title: '', description: '', status: '' });
+    const [editTask, setEditTask] = useState<Task | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const navigate = useNavigate();
 
-    // Fetch tasks when the component loads
     useEffect(() => {
         const fetchTasks = async () => {
-            const token = localStorage.getItem('token'); // Retrieve token from localStorage
+            const token = localStorage.getItem('token');
             if (!token) {
-                navigate('/'); // Redirect to login if no token found
+                navigate('/');
                 return;
             }
 
             try {
-                // Make API request to fetch tasks
                 const response = await api.get('/tasks', {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                setTasks(response.data); // Update tasks state with API response
+                setTasks(response.data);
             } catch (err) {
                 console.error('Error fetching tasks:', err);
             }
@@ -33,84 +32,201 @@ const TasksPage: React.FC = () => {
         fetchTasks();
     }, [navigate]);
 
-    // Handle new task form submission
     const handleAddTask = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError(null); // Clear previous errors
+        setError(null);
 
-        const token = localStorage.getItem('token'); // Retrieve token
+        const token = localStorage.getItem('token');
         if (!token) {
             setError('You must be logged in to add a task.');
             return;
         }
 
         try {
-            // Make API request to add a new task
-            const response = await api.post(
-                '/tasks',
-                newTask,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-            setTasks([...tasks, response.data]); // Add the new task to the tasks list
-            setNewTask({ title: '', description: '', status: '' }); // Reset the form
+            const response = await api.post('/tasks', newTask, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setTasks([...tasks, response.data]);
+            setNewTask({ title: '', description: '', status: '' });
         } catch (err: any) {
             console.error('Error adding task:', err);
             setError('Failed to add task. Please try again.');
         }
     };
 
+    const handleUpdateTask = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+
+        const token = localStorage.getItem('token');
+        if (!token || !editTask) {
+            setError('You must be logged in to edit a task.');
+            return;
+        }
+
+        try {
+            const response = await api.put(
+                `/tasks/${editTask._id}`,
+                {
+                    title: editTask.title,
+                    description: editTask.description,
+                    status: editTask.status,
+                },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            setTasks((prevTasks) =>
+                prevTasks.map((task) => (task._id === response.data._id ? response.data : task))
+            );
+            setEditTask(null); // Close modal
+        } catch (err: any) {
+            console.error('Error updating task:', err);
+            setError('Failed to update task. Please try again.');
+        }
+    };
+
+    const handleDeleteTask = async (id: string) => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        try {
+            await api.delete(`/tasks/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+            setTasks(tasks.filter((task) => task._id !== id));
+        } catch (err) {
+            console.error('Error deleting task:', err);
+        }
+    };
+
+    const handleDeleteTaskWithConfirmation = (id: string) => {
+        if (window.confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
+            handleDeleteTask(id);
+        }
+    };
+
     return (
         <div className="container mt-5">
-            <h2>My Tasks</h2>
+            <h2 className="mb-4">My Tasks</h2>
 
-            {/* New Task Form */}
+            {/* Add Task Form */}
             <form onSubmit={handleAddTask} className="mb-4">
-                <div className="mb-3">
-                    <label>Title</label>
-                    <input
-                        type="text"
-                        className="form-control"
-                        value={newTask.title}
-                        onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                        required
-                    />
+                <div className="row g-3">
+                    <div className="col-md-3">
+                        <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Title"
+                            value={newTask.title}
+                            onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                            required
+                        />
+                    </div>
+                    <div className="col-md-4">
+                        <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Description"
+                            value={newTask.description}
+                            onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-3">
+                        <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Status"
+                            value={newTask.status}
+                            onChange={(e) => setNewTask({ ...newTask, status: e.target.value })}
+                            required
+                        />
+                    </div>
+                    <div className="col-md-2">
+                        <button type="submit" className="btn btn-primary w-100">
+                            Add Task
+                        </button>
+                    </div>
                 </div>
-                <div className="mb-3">
-                    <label>Description</label>
-                    <textarea
-                        className="form-control"
-                        value={newTask.description}
-                        onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                    />
-                </div>
-                <div className="mb-3">
-                    <label>Status</label>
-                    <input
-                        type="text"
-                        className="form-control"
-                        value={newTask.status}
-                        onChange={(e) => setNewTask({ ...newTask, status: e.target.value })}
-                        required
-                    />
-                </div>
-                {error && <div className="alert alert-danger">{error}</div>}
-                <button type="submit" className="btn btn-primary">Add Task</button>
             </form>
 
-            {/* Tasks List */}
-            <ul className="list-group">
+            {/* Task Grid */}
+            <div className="row g-3">
                 {tasks.length > 0 ? (
                     tasks.map((task) => (
-                        <li key={task._id} className="list-group-item">
-                            <h5>{task.title}</h5>
-                            <p>{task.description}</p>
-                            <p><strong>Status:</strong> {task.status}</p>
-                        </li>
+                        <div key={task._id} className="col-md-4">
+                            <div className="card h-100 shadow-sm">
+                                <div className="card-body">
+                                    <h5 className="card-title">{task.title}</h5>
+                                    <p className="card-text">{task.description || 'No description provided.'}</p>
+                                    <span className="badge bg-info text-dark">{task.status}</span>
+                                </div>
+                                <div className="card-footer d-flex justify-content-between">
+                                    <button
+                                        className="btn btn-sm btn-secondary"
+                                        onClick={() => setEditTask({ ...task })}
+                                    >
+                                        Edit
+                                    </button>
+                                    <button
+                                        className="btn btn-sm btn-danger"
+                                        onClick={() => handleDeleteTaskWithConfirmation(task._id)}
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     ))
                 ) : (
-                    <p>No tasks found. Add a new task!</p>
+                    <p className="text-center">No tasks found. Add a task above to get started!</p>
                 )}
-            </ul>
+            </div>
+
+            {/* Edit Task Modal */}
+            {editTask && (
+                <div className="modal">
+                    <div className="modal-content">
+                        <h4>Edit Task</h4>
+                        <form onSubmit={handleUpdateTask}>
+                            <div className="mb-3">
+                                <label>Title</label>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    value={editTask.title}
+                                    onChange={(e) => setEditTask({ ...editTask, title: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div className="mb-3">
+                                <label>Description</label>
+                                <textarea
+                                    className="form-control"
+                                    value={editTask.description || ''}
+                                    onChange={(e) => setEditTask({ ...editTask, description: e.target.value })}
+                                />
+                            </div>
+                            <div className="mb-3">
+                                <label>Status</label>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    value={editTask.status}
+                                    onChange={(e) => setEditTask({ ...editTask, status: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            {error && <div className="alert alert-danger">{error}</div>}
+                            <button type="submit" className="btn btn-primary">Save</button>
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={() => setEditTask(null)}
+                            >
+                                Cancel
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
