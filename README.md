@@ -1,4 +1,4 @@
-# The backend for the board is available in (this)[https://github.com/avitej-iyer/task_management_board_prime_backend] repository.
+# The backend for the board is available in [this](https://github.com/avitej-iyer/task_management_board_prime_backend) repository.
 
 
 # React + TypeScript + Vite
